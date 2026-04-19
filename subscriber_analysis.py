@@ -18,7 +18,7 @@ from sklearn.metrics import mean_squared_error, r2_score
 #from google.colab import drive
 #drive.mount('/content/drive')
 
-data=pd.read_csv("/content/WA_Fn-UseC_-Telco-Customer-Churn.csv")
+data=pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
 
 data.info()
 
