@@ -1,57 +1,65 @@
+
 import streamlit as st
-import joblib
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns
 
-# Model aur Scaler Load karein
-model = joblib.load('supply_chain_rf_model.pkl')
-# Agar scaler save kiya hai toh load karein, varna skip karein
+# Page Configuration
+st.set_page_config(page_title="Churn Predictor Pro", layout="wide")
+st.title("🚀 Customer Churn AI Predictor & Dashboard")
+
+# Data Loading
+@st.cache_data
+def load_data():
+    # Make sure the filename matches exactly
+    df = pd.read_csv("WA_Fn-UseC_-Telco-Customer-Churn.csv")
+    df['TotalCharges'] = pd.to_numeric(df['TotalCharges'], errors='coerce')
+    df.dropna(inplace=True)
+    return df
+
 try:
-    scaler = joblib.load('scaler.pkl')
-except:
-    scaler = None
+    data = load_data()
 
-st.set_page_config(page_title="Supply Chain Analytics", layout="wide")
+    tab1, tab2 = st.tabs(["📊 Analysis Dashboard", "🤖 AI Prediction"])
 
-st.title("🚚 Real-Time Supply Chain Delivery Predictor")
-st.markdown("---")
+    with tab1:
+        st.header("Business Insights")
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Customers", len(data))
+        col2.metric("Churn Rate", f"{(data['Churn'] == 'Yes').mean():.1%}")
+        col3.metric("Average Tenure", f"{data['tenure'].mean():.1f} Months")
 
-# Layout: 2 Columns
-col1, col2 = st.columns([1, 1])
+        st.divider()
+        c1, c2 = st.columns(2)
+        with c1:
+            st.subheader("Tenure vs Churn")
+            fig1, ax1 = plt.subplots()
+            sns.histplot(data=data, x='tenure', hue='Churn', multiple="stack", ax=ax1)
+            st.pyplot(fig1)
+        with c2:
+            st.subheader("Contract Type Distribution")
+            fig2, ax2 = plt.subplots()
+            data['Contract'].value_counts().plot.pie(autopct='%1.1f%%', ax=ax2)
+            st.pyplot(fig2)
 
-with col1:
-    st.header("📋 Order Details")
-    # Top features ke basis par inputs
-    sales = st.number_input("Total Sales ($)", value=200.0)
-    profit = st.number_input("Profit Per Order ($)", value=50.0)
-    days_scheduled = st.slider("Scheduled Shipping Days", 0, 7, 4)
-    region = st.selectbox("Order Region (ID)", options=list(range(20))) # Base on your encoding
+    with tab2:
+        st.header("Predict Customer Exit")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            tenure = st.slider("Tenure (Months)", 0, 72, 12)
+            monthly_charges = st.number_input("Monthly Charges ($)", 0.0, 150.0, 50.0)
+        with col_b:
+            contract = st.selectbox("Contract Type", ["Month-to-month", "One year", "Two year"])
+            tech_support = st.selectbox("Tech Support", ["No", "Yes", "No internet service"])
 
-with col2:
-    st.header("📊 Prediction & Visualization")
-    if st.button('Predict Delivery Risk'):
-        # Input data format (matching your X columns)
-        # Note: Aapko yahan apne exact column names use karne honge jo X_train mein the
-        input_data = pd.DataFrame([[sales, profit, days_scheduled, region]], 
-                                 columns=['Sales', 'Order Profit Per Order', 'Days for shipment (scheduled)', 'Order Region'])
-        
-        # Ye part dhyan dein: Agar columns mismatch ho toh model error dega. 
-        # Isliye hum dummy columns fill kar rahe hain jo missing hain:
-        full_input = pd.DataFrame(0, index=[0], columns=model.feature_names_in_)
-        for col in input_data.columns:
-            if col in full_input.columns:
-                full_input[col] = input_data[col].values
+        if st.button("Predict Churn Status"):
+            # Simple Prediction Logic
+            if contract == "Month-to-month" and tenure < 12:
+                st.error("⚠️ HIGH RISK: This customer is likely to leave!")
+            else:
+                st.success("✅ LOW RISK: This customer seems loyal.")
 
-        prediction = model.predict(full_input)[0]
-        prob = model.predict_proba(full_input)[0]
+except Exception as e:
+    st.error(f"Error loading data: {e}")
 
-        if prediction == 1:
-            st.error(f"🔴 HIGH RISK: Model predicts LATE DELIVERY")
-        else:
-            st.success(f"🟢 LOW RISK: Model predicts ON-TIME DELIVERY")
-            
-        # Visualization
-        fig, ax = plt.subplots(figsize=(5, 3))
-        sns.barplot(x=["On-Time", "Late"], y=[prob[0], prob[1]], palette=['#2ecc71', '#e74c3c'], ax=ax)
-        st.pyplot(fig)
+st.sidebar.info("Project by Dayashankar")
